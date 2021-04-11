@@ -15,15 +15,57 @@ namespace LsMsgPack {
     /// </summary>
     public abstract int Count { get; }
 
-    protected byte[] GetLengthBytes(long length, SupportedLengths supported) {
-      // if(length < 0) return new byte[0];
-      if(length < 256 && (supported & SupportedLengths.Byte1)>0) return new byte[1] { (byte)length };
-      byte[] bytes; // from here we should worry about endianness
-      if(length <= ushort.MaxValue && (supported & SupportedLengths.Short2) > 0) bytes = BitConverter.GetBytes((ushort)length);
-      else if(length <= uint.MaxValue && (supported & SupportedLengths.Int4) > 0) bytes = BitConverter.GetBytes((uint)length);
-      else bytes = BitConverter.GetBytes((ulong)length); 
-      ReorderIfLittleEndian(bytes);
-      return bytes;
+    protected int GetLengthBytesSize(long length, SupportedLengths supported)
+    {
+        // if(length < 0) return new byte[0];
+        if (length < 256 && (supported & SupportedLengths.Byte1) > 0) return 1;
+
+        if (length <= ushort.MaxValue && (supported & SupportedLengths.Short2) > 0)
+        {
+            return 2;
+        }
+        else if (length <= uint.MaxValue && (supported & SupportedLengths.Int4) > 0)
+        {
+            return 4;
+        }
+        else
+        {
+            return 8;
+        }
+    }
+
+    protected byte[] GetLengthBytes(long length, SupportedLengths supported) 
+    {
+        // if(length < 0) return new byte[0];
+        if(length < 256 && (supported & SupportedLengths.Byte1)>0) return new byte[1] { (byte)length };
+
+        byte[] bytes; // from here we should worry about endianness
+        if (length <= ushort.MaxValue && (supported & SupportedLengths.Short2) > 0)
+        {
+                LsMsgPackL.FastShortToBytes converter = default;
+                converter.integer = (ushort)length;
+                bytes = new byte[] { converter.byte0, converter.byte1 };
+        }
+        else if (length <= uint.MaxValue && (supported & SupportedLengths.Int4) > 0)
+        {
+                LsMsgPackL.FastIntToBytes converter = default;
+                converter.integer = (uint)length;
+                bytes = new byte[] { converter.byte0, converter.byte1, converter.byte2, converter.byte3 };
+        }
+        else
+        {
+                LsMsgPackL.FastLongToBytes converter = default;
+                converter.integer = (ulong)length;
+                bytes = new byte[] { converter.byte0, converter.byte1, converter.byte2, converter.byte3,
+                                     converter.byte4, converter.byte5, converter.byte6, converter.byte7 };
+        }
+        ReorderIfLittleEndian(bytes);
+        return bytes;
+    }
+
+    protected int GetLengthBytesSize(MsgPackTypeId maskTypeId, int length)
+    {
+      return 1;
     }
 
     protected byte GetLengthBytes(MsgPackTypeId maskTypeId, int length) {
